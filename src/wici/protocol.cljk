@@ -16,10 +16,7 @@
 (defn request [op & {:as args}]
   (merge {:wici version :op op} args))
 
-(defn serve
-  "Handle one request against device `dev`. Never throws; failures become
-  `{:ok false :error ...}`."
-  [dev {:keys [wici op] :as req}]
+(defn- serve* [dev {:keys [wici op] :as req}]
   (try
     (if (not= wici version)
       {:ok false :error (str "unsupported protocol version " (pr-str wici))}
@@ -35,3 +32,11 @@
          (throw (ex-info (str "unknown op " (pr-str op)) {:op op})))})
     (catch #?(:clj Exception :cljs :default) e
       {:ok false :error (ex-message e)})))
+
+(defn serve
+  "Handle one request against device `dev`. Never throws; failures become
+  `{:ok false :error ...}`. A request's `:id` (if any) is echoed on the
+  response so an async transport can match replies to calls."
+  [dev {:keys [id] :as req}]
+  (cond-> (serve* dev req)
+    (some? id) (assoc :id id)))
